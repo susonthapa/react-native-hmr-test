@@ -7,6 +7,8 @@
 
 import React from 'react';
 import {
+  DeviceEventEmitter,
+  EmitterSubscription,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -45,7 +47,7 @@ function App(): React.JSX.Element {
             backgroundColor: isDarkMode ? Colors.black : Colors.white,
           }}>
           <Section title="Step One">
-            HMR doesn't work in separate file?
+            Step Two
           </Section>
           <Section title="See Your Changes">
             <ReloadInstructions />
@@ -63,10 +65,32 @@ function App(): React.JSX.Element {
   );
 }
 
-if(module.hot) {
-  module.hot.accept(() => {
-    console.log('Module Hot Accept!');
+let emitterSub: EmitterSubscription | undefined
+function setupHMRListener() {
+  if (!__DEV__) {
+    return
+  }
+  emitterSub?.remove()
+  let isUpdating = false
+  emitterSub = DeviceEventEmitter.addListener('websocketMessage', (data) => {
+    try {
+      const response = JSON.parse(data.data)
+      if (response.type === "update" && response.body?.modified?.length > 0) {
+        isUpdating = true
+      }
+
+      if (isUpdating && response?.type === "update-done") {
+        // Do your changes here!
+        console.log('detected a change in code!');
+        isUpdating = false
+      }
+
+    } catch (e) {
+      console.log('Failed to parse the webSocketMessage event data!', e)
+    }
+
   })
 }
+setupHMRListener()
 
 export default App;
